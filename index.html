@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ForgeRig — PC Parts & Custom Builds</title>
+<style>
+  :root { --bg:#0e1013; --card:#171a1f; --line:#262a31; --text:#e8eaed; --muted:#9aa0a6; --accent:#38e07b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui, sans-serif; background:var(--bg); color:var(--text); }
+  header { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:16px; padding:14px 20px; background:#0e1013ee; border-bottom:1px solid var(--line); backdrop-filter:blur(6px); }
+  header h1 { margin:0; font-size:20px; letter-spacing:.5px; }
+  header h1 span { color:var(--accent); }
+  nav { display:flex; gap:6px; flex-wrap:wrap; margin-left:auto; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--text); padding:8px 14px; border-radius:8px; }
+  button:hover, button:focus-visible { border-color:var(--accent); }
+  button.on, .primary { background:var(--accent); color:#06140b; border-color:var(--accent); font-weight:600; }
+  .hero { padding:56px 20px 32px; max-width:1100px; margin:auto; }
+  .hero h2 { font-size:clamp(28px, 5vw, 48px); margin:0 0 10px; }
+  .hero p { color:var(--muted); margin:0; max-width:560px; }
+  main { max-width:1100px; margin:auto; padding:0 20px 60px; display:grid; gap:16px; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:8px; }
+  .card .icon { font-size:40px; }
+  .card h3 { margin:0; font-size:17px; }
+  .tag { font-size:12px; color:var(--accent); text-transform:uppercase; letter-spacing:1px; }
+  .card ul { margin:0; padding-left:18px; color:var(--muted); font-size:14px; }
+  .card .spec { color:var(--muted); font-size:14px; margin:0; }
+  .row { display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:8px; }
+  .price { font-size:20px; font-weight:700; }
+  #cart { position:fixed; inset:0 0 0 auto; width:min(380px, 100%); background:var(--card); border-left:1px solid var(--line); padding:20px; transform:translateX(100%); transition:transform .2s; display:flex; flex-direction:column; gap:12px; z-index:10; }
+  #cart.open { transform:none; }
+  #cart h2 { margin:0; }
+  #items { flex:1; overflow:auto; display:flex; flex-direction:column; gap:10px; }
+  .line { display:flex; gap:8px; align-items:center; border-bottom:1px solid var(--line); padding-bottom:10px; }
+  .line div { flex:1; font-size:14px; }
+  .line button { padding:2px 9px; }
+  form { display:flex; flex-direction:column; gap:8px; }
+  input { font:inherit; padding:9px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--text); }
+  .muted { color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Forge<span>Rig</span></h1>
+  <nav id="filters"></nav>
+  <button id="cartBtn" aria-controls="cart">Cart (<span id="count">0</span>)</button>
+</header>
+
+<section class="hero">
+  <h2>Parts you trust. Rigs built right.</h2>
+  <p>Shop individual components or grab a pre-built PC assembled, cable-managed and stress-tested by us.</p>
+</section>
+
+<main id="grid"></main>
+
+<aside id="cart" aria-label="Shopping cart">
+  <div class="row" style="margin:0;padding:0"><h2>Your cart</h2><button id="closeCart" aria-label="Close cart">✕</button></div>
+  <div id="items"></div>
+  <div class="row"><span>Total</span><span class="price" id="total">$0</span></div>
+  <form id="checkout">
+    <input name="name" placeholder="Full name" required autocomplete="name">
+    <input name="email" type="email" placeholder="Email" required autocomplete="email">
+    <input name="address" placeholder="Shipping address" required autocomplete="street-address">
+    <button class="primary">Place order</button>
+  </form>
+  <p class="muted" id="msg"></p>
+</aside>
+
+<script>
+// Edit this list to manage your catalog.
+const PRODUCTS = [
+  { id:"b1", cat:"Pre-built", icon:"🖥️", name:"Forge Starter", price:899, specs:["Ryzen 5 7600","RTX 4060 8GB","16GB DDR5","1TB NVMe"] },
+  { id:"b2", cat:"Pre-built", icon:"🖥️", name:"Forge Pro", price:1699, specs:["Ryzen 7 7800X3D","RTX 4070 Super 12GB","32GB DDR5","2TB NVMe"] },
+  { id:"b3", cat:"Pre-built", icon:"🖥️", name:"Forge Ultra", price:3299, specs:["Core i9-14900K","RTX 4090 24GB","64GB DDR5","4TB NVMe"] },
+  { id:"p1", cat:"CPU", icon:"🧠", name:"AMD Ryzen 7 7800X3D", price:379, spec:"8 cores · 5.0 GHz · AM5" },
+  { id:"p2", cat:"CPU", icon:"🧠", name:"Intel Core i5-14600K", price:289, spec:"14 cores · 5.3 GHz · LGA1700" },
+  { id:"p3", cat:"GPU", icon:"🎮", name:"NVIDIA RTX 4070 Super", price:599, spec:"12GB GDDR6X" },
+  { id:"p4", cat:"GPU", icon:"🎮", name:"AMD Radeon RX 7800 XT", price:479, spec:"16GB GDDR6" },
+  { id:"p5", cat:"Memory", icon:"💾", name:"Corsair Vengeance 32GB", price:99, spec:"2×16GB DDR5-6000 CL30" },
+  { id:"p6", cat:"Storage", icon:"💽", name:"Samsung 990 Pro 2TB", price:169, spec:"NVMe PCIe 4.0" },
+  { id:"p7", cat:"Motherboard", icon:"🔌", name:"MSI B650 Tomahawk", price:199, spec:"AM5 · ATX · Wi-Fi 6E" },
+  { id:"p8", cat:"Power", icon:"⚡", name:"Corsair RM850x", price:129, spec:"850W · 80+ Gold · Modular" },
+  { id:"p9", cat:"Case", icon:"📦", name:"Lian Li Lancool 216", price:99, spec:"Mid-tower · Mesh front" },
+];
+
+const $ = s => document.querySelector(s);
+const money = n => new Intl.NumberFormat("en-US", { style:"currency", currency:"USD" }).format(n);
+const byId = id => PRODUCTS.find(p => p.id === id);
+const cartTotal = cart => Object.entries(cart).reduce((s, [id, qty]) => s + (byId(id)?.price ?? 0) * qty, 0);
+
+let cart = {};
+try { cart = JSON.parse(localStorage.getItem("cart")) || {}; } catch {}
+let filter = "All";
+
+function renderFilters() {
+  const cats = ["All", ...new Set(PRODUCTS.map(p => p.cat))];
+  $("#filters").innerHTML = cats.map(c => `<button class="${c === filter ? "on" : ""}" data-cat="${c}">${c}</button>`).join("");
+}
+
+function renderGrid() {
+  $("#grid").innerHTML = PRODUCTS.filter(p => filter === "All" || p.cat === filter).map(p => `
+    <article class="card">
+      <div class="icon" aria-hidden="true">${p.icon}</div>
+      <span class="tag">${p.cat}</span>
+      <h3>${p.name}</h3>
+      ${p.specs ? `<ul>${p.specs.map(s => `<li>${s}</li>`).join("")}</ul>` : `<p class="spec">${p.spec}</p>`}
+      <div class="row"><span class="price">${money(p.price)}</span><button class="primary" data-add="${p.id}">Add to cart</button></div>
+    </article>`).join("");
+}
+
+function renderCart() {
+  try { localStorage.setItem("cart", JSON.stringify(cart)); } catch {}
+  const ids = Object.keys(cart).filter(byId);
+  $("#count").textContent = ids.reduce((s, id) => s + cart[id], 0);
+  $("#items").innerHTML = ids.length ? ids.map(id => `
+    <div class="line">
+      <div>${byId(id).name}<br><span class="muted">${money(byId(id).price)}</span></div>
+      <button data-dec="${id}" aria-label="Remove one">−</button><span>${cart[id]}</span><button data-add="${id}" aria-label="Add one">+</button>
+    </div>`).join("") : `<p class="muted">Your cart is empty.</p>`;
+  $("#total").textContent = money(cartTotal(cart));
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("button");
+  if (!t) return;
+  if (t.dataset.cat) { filter = t.dataset.cat; renderFilters(); renderGrid(); }
+  if (t.dataset.add) { cart[t.dataset.add] = (cart[t.dataset.add] || 0) + 1; renderCart(); }
+  if (t.dataset.dec) { if (--cart[t.dataset.dec] <= 0) delete cart[t.dataset.dec]; renderCart(); }
+});
+$("#cartBtn").onclick = () => $("#cart").classList.add("open");
+$("#closeCart").onclick = () => $("#cart").classList.remove("open");
+
+$("#checkout").onsubmit = e => {
+  e.preventDefault();
+  if (!Object.keys(cart).length) return $("#msg").textContent = "Add something to your cart first.";
+  // shortcut: no payment or order backend — orders aren't saved anywhere; hook up Stripe Checkout / Shopify before taking real money.
+  $("#msg").textContent = `Thanks ${e.target.name.value}! Order for ${money(cartTotal(cart))} received (demo — no payment taken).`;
+  cart = {}; e.target.reset(); renderCart();
+};
+
+console.assert(cartTotal({ b1:1, p5:2, nope:3 }) === 899 + 198, "cartTotal self-check failed");
+
+renderFilters(); renderGrid(); renderCart();
+</script>
+</body>
+</html>
